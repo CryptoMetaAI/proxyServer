@@ -10,7 +10,7 @@ var SHA1 = new Hashes.SHA1
 var logger = new Logger('debug');
 
 dotenv.config()
-const { blockpiKey, port } = process.env
+const { blockpiKey, port, cacheOpen } = process.env
 
 var proxy = httpProxy.createProxyServer();
 
@@ -60,7 +60,7 @@ var proxy_server = http.createServer(function(req, res) {
         const bodyWithoutId = delete JSON.parse(body).id
         const bodyHash = SHA1.hex(JSON.stringify(bodyWithoutId));
         logger.debug('bodyHash', bodyHash)
-        if (cache[bodyHash] && cache[bodyHash].timestamp + 6000 > curTime) {
+        if (cacheOpen && cache[bodyHash] && cache[bodyHash].timestamp + 6000 > curTime) {
             logger.debug(`${curTime} -- ${req.method} ${req.headers.host}${req.url} ${body} -- response OK(in cache time:${cache[bodyHash].timestamp})`)
             res.end(cache[bodyHash].response)
             return
@@ -73,9 +73,11 @@ var proxy_server = http.createServer(function(req, res) {
         .then(res1 => {
             logger.debug(`${req.method} ${req.headers.host}${req.url} -- ${body} -- response OK`)
             res.end(res1.text)
-            cache[bodyHash] = {
-                response: res1.text,
-                timestamp: curTime
+            if (cacheOpen) {
+                cache[bodyHash] = {
+                    response: res1.text,
+                    timestamp: curTime
+                }
             }
         })
     })
