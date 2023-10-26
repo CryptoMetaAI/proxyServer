@@ -1,8 +1,9 @@
-import http from 'http'
+import https from 'https'
 import httpProxy from 'http-proxy'
 import superagent from 'superagent'
 import Hashes from 'jshashes'
 import * as dotenv from 'dotenv'
+import fs from 'fs'
 
 import { Logger } from './logger.js';
 
@@ -10,31 +11,36 @@ var SHA1 = new Hashes.SHA1
 var logger = new Logger('debug');
 
 dotenv.config()
-const { blockpiKey, port, cacheOpen } = process.env
+const { blockpiKey, port, cacheOpen, sslKey, sslCert } = process.env
 
-var proxy = httpProxy.createProxyServer();
+// var proxy = httpProxy.createProxyServer();
 
-proxy.on('error', function(err, req, res) {
-    logger.error("Error: ", err.message);
-    res.end();
-});
+// proxy.on('error', function(err, req, res) {
+//     logger.error("Error: ", err.message);
+//     res.end();
+// });
 
-proxy.on('proxyRes', function (proxyRes, req, res) {
-        var body = [];
-        proxyRes.on('data', function (chunk) {
-            body.push(chunk);
-        });
-        proxyRes.on('end', function () {
-            body = Buffer.concat(body).toString();
-            logger.debug("res from proxied server:", body);
-            res.end("my response to cli");
-        });
-});
+// proxy.on('proxyRes', function (proxyRes, req, res) {
+//         var body = [];
+//         proxyRes.on('data', function (chunk) {
+//             body.push(chunk);
+//         });
+//         proxyRes.on('end', function () {
+//             body = Buffer.concat(body).toString();
+//             logger.debug("res from proxied server:", body);
+//             res.end("my response to cli");
+//         });
+// });
 
 let cache = {startTime: new Date().getTime()}
 logger.debug(JSON.stringify(cache))
 
-var proxy_server = http.createServer(function(req, res) {
+const option = {
+    key: fs.readFileSync(sslKey),
+    cert: fs.readFileSync(sslCert)
+}
+
+var https_server = https.createServer(option, function(req, res) {
 
     res.setHeader('Access-Control-Allow-Origin', '*')
     res.setHeader('Access-Control-Allow-Headers', 'Origin, X-Api-Key, X-Requested-With, Content-Type, Accept, Authorization')
@@ -90,6 +96,6 @@ var proxy_server = http.createServer(function(req, res) {
     
 });
 
-proxy_server.listen(port, function() {
-    logger.debug('proxy server is running ');
+https_server.listen(port, function() {
+    logger.debug('proxy server is running at port', port);
 });
