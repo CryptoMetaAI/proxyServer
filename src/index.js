@@ -1,17 +1,21 @@
-var http = require('http')
-var httpProxy = require('http-proxy')
-var superagent = require('superagent')
-var Hashes = require('jshashes')
-var dotenv = require('dotenv')
+import http from 'http'
+import httpProxy from 'http-proxy'
+import superagent from 'superagent'
+import Hashes from 'jshashes'
+import * as dotenv from 'dotenv'
+
+import { Logger } from './logger.js';
+
 var SHA1 = new Hashes.SHA1
+var logger = new Logger('debug');
 
 dotenv.config()
-const { blockpiKey } = process.env
+const { blockpiKey, port } = process.env
 
 var proxy = httpProxy.createProxyServer();
 
 proxy.on('error', function(err, req, res) {
-    console.log("Error: ", err.message);
+    logger.error("Error: ", err.message);
     res.end();
 });
 
@@ -22,13 +26,13 @@ proxy.on('proxyRes', function (proxyRes, req, res) {
         });
         proxyRes.on('end', function () {
             body = Buffer.concat(body).toString();
-            console.log("res from proxied server:", body);
+            logger.debug("res from proxied server:", body);
             res.end("my response to cli");
         });
 });
 
 let cache = {startTime: new Date().getTime()}
-console.log(JSON.stringify(cache))
+logger.debug(JSON.stringify(cache))
 
 var proxy_server = http.createServer(function(req, res) {
 
@@ -55,9 +59,9 @@ var proxy_server = http.createServer(function(req, res) {
         const curTime = new Date().getTime()
         const bodyWithoutId = delete JSON.parse(body).id
         const bodyHash = SHA1.hex(JSON.stringify(bodyWithoutId));
-        console.log('bodyHash', bodyHash)
+        logger.debug('bodyHash', bodyHash)
         if (cache[bodyHash] && cache[bodyHash].timestamp + 6000 > curTime) {
-            console.log(`${curTime} -- ${req.method} ${req.headers.host}${req.url} ${body} -- response OK(in cache time:${cache[bodyHash].timestamp})`)
+            logger.debug(`${curTime} -- ${req.method} ${req.headers.host}${req.url} ${body} -- response OK(in cache time:${cache[bodyHash].timestamp})`)
             res.end(cache[bodyHash].response)
             return
         }
@@ -67,7 +71,7 @@ var proxy_server = http.createServer(function(req, res) {
         superagent.post(`https://base.blockpi.network/v1/rpc/${blockpiKey}`)
         .send(body)
         .then(res1 => {
-            console.log(`${req.method} ${req.headers.host}${req.url} -- ${body} -- response OK`)
+            logger.debug(`${req.method} ${req.headers.host}${req.url} -- ${body} -- response OK`)
             res.end(res1.text)
             cache[bodyHash] = {
                 response: res1.text,
@@ -78,6 +82,6 @@ var proxy_server = http.createServer(function(req, res) {
     
 });
 
-proxy_server.listen(8080, function() {
-    console.log('proxy server is running ');
+proxy_server.listen(port, function() {
+    logger.debug('proxy server is running ');
 });
