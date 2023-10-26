@@ -56,17 +56,23 @@ var proxy_server = http.createServer(function(req, res) {
     })
 
     req.on('end', function() {
-        const curTime = new Date().getTime()
-        const bodyWithoutId = delete JSON.parse(body).id
-        const bodyHash = SHA1.hex(JSON.stringify(bodyWithoutId));
-        logger.debug('bodyHash', bodyHash)
-        if (cacheOpen == 1 && cache[bodyHash] && cache[bodyHash].timestamp + 6000 > curTime) {
-            logger.debug(`${curTime} -- ${req.method} ${req.headers.host}${req.url} ${body} -- response OK(in cache time:${cache[bodyHash].timestamp})`)
-            res.end(cache[bodyHash].response)
-            return
-        }
-        if (cache.startTime + 3600000 < curTime) {
-            cache = {startTime: curTime}
+        if (cacheOpen == 1) {
+            try {
+                const curTime = new Date().getTime()
+                const bodyWithoutId = delete JSON.parse(body).id
+                const bodyHash = SHA1.hex(JSON.stringify(bodyWithoutId));
+                logger.debug('bodyHash', bodyHash)
+                if (cache[bodyHash] && cache[bodyHash].timestamp + 6000 > curTime) {
+                    logger.debug(`${curTime} -- ${req.method} ${req.headers.host}${req.url} ${body} -- response OK(in cache time:${cache[bodyHash].timestamp})`)
+                    res.end(cache[bodyHash].response)
+                    return
+                }
+                if (cache.startTime + 3600000 < curTime) {
+                    cache = {startTime: curTime}
+                }
+            } catch (error) {
+                logger.error(error.message, body)
+            }
         }
         superagent.post(`https://base.blockpi.network/v1/rpc/${blockpiKey}`)
         .send(body)
@@ -76,7 +82,7 @@ var proxy_server = http.createServer(function(req, res) {
             if (cacheOpen == 1) {
                 cache[bodyHash] = {
                     response: res1.text,
-                    timestamp: curTime
+                    timestamp: new Date().getTime()
                 }
             }
         })
