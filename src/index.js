@@ -60,7 +60,7 @@ var proxy_server = http.createServer(function(req, res) {
         const bodyWithoutId = delete JSON.parse(body).id
         const bodyHash = SHA1.hex(JSON.stringify(bodyWithoutId));
         logger.debug('bodyHash', bodyHash)
-        if (cacheOpen && cache[bodyHash] && cache[bodyHash].timestamp + 6000 > curTime) {
+        if (cacheOpen == 1 && cache[bodyHash] && cache[bodyHash].timestamp + 6000 > curTime) {
             logger.debug(`${curTime} -- ${req.method} ${req.headers.host}${req.url} ${body} -- response OK(in cache time:${cache[bodyHash].timestamp})`)
             res.end(cache[bodyHash].response)
             return
@@ -73,7 +73,7 @@ var proxy_server = http.createServer(function(req, res) {
         .then(res1 => {
             logger.debug(`${req.method} ${req.headers.host}${req.url} -- ${body} -- response OK`)
             res.end(res1.text)
-            if (cacheOpen) {
+            if (cacheOpen == 1) {
                 cache[bodyHash] = {
                     response: res1.text,
                     timestamp: curTime
